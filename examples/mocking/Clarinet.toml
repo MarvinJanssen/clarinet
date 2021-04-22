@@ -1,0 +1,6 @@
+[project]
+name = "mocking"
+
+[contracts.mocking-example]
+path = "contracts/mocking-example.clar"
+depends_on = []

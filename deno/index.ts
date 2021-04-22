@@ -34,10 +34,24 @@ export class Tx {
     return tx;
   }
 
-  static deployContract(name: string, code: string, sender: string) {
+  static deployContract(contract: MockContract): Tx;
+
+  static deployContract(nameOrContract: string | MockContract, code?: string, sender?: string): Tx {
+    if (nameOrContract instanceof MockContract) {
+      let tx = new Tx(3, nameOrContract.sender);
+      tx.deployContract = {
+        name: nameOrContract.name,
+        code: nameOrContract.toString(),
+      };
+      console.log(nameOrContract.toString());
+    return tx;
+    }
+    if (!code || !sender) {
+      throw new Error('code and sender cannot be empty.');
+    }
     let tx = new Tx(3, sender);
     tx.deployContract = {
-      name,
+      name: (nameOrContract as string),
       code,
     };
     return tx;
@@ -257,17 +271,17 @@ export namespace types {
 
 declare global {
   interface String {
-    expectOk(): String;
-    expectErr(): String;
-    expectSome(): String;
+    expectOk(): string;
+    expectErr(): string;
+    expectSome(): string;
     expectNone(): void;
     expectBool(value: boolean): boolean;
     expectUint(value: number): number;
     expectInt(value: number): number;
     expectBuff(value: ArrayBuffer): ArrayBuffer;
-    expectAscii(value: String): String;
-    expectUtf8(value: String): String;
-    expectPrincipal(value: String): String;
+    expectAscii(value: string): string;
+    expectUtf8(value: string): string;
+    expectPrincipal(value: string): string;
     expectList(): Array<String>;
     expectTuple(): Object;
   }
@@ -275,34 +289,65 @@ declare global {
   interface Array<T> {
     expectSTXTransferEvent(
       amount: Number,
-      sender: String,
-      recipient: String,
+      sender: string,
+      recipient: string,
     ): Object;
     expectFungibleTokenTransferEvent(
       amount: Number,
-      sender: String,
-      recipient: String,
-      assetId: String,
+      sender: string,
+      recipient: string,
+      assetId: string,
     ): Object;
     expectFungibleTokenMintEvent(
       amount: Number,
-      recipient: String,
-      assetId: String,
+      recipient: string,
+      assetId: string,
     ): Object;
     expectFungibleTokenBurnEvent(
       amount: Number,
-      sender: String,
-      assetId: String,
+      sender: string,
+      assetId: string,
     ): Object;
     // Absence of test vectors at the moment - token field could present some challenges.
-    // expectNonFungibleTokenTransferEvent(token: String, sender: String, recipient: String, assetId: String): Object;
-    // expectNonFungibleTokenMintEvent(token: String, recipient: String, assetId: String): Object;
-    // expectNonFungibleTokenBurnEvent(token: String, sender: String, assetId: String): Object;
+    // expectNonFungibleTokenTransferEvent(token: string, sender: string, recipient: string, assetId: string): Object;
+    // expectNonFungibleTokenMintEvent(token: string, recipient: string, assetId: string): Object;
+    // expectNonFungibleTokenBurnEvent(token: string, sender: string, assetId: string): Object;
     // expectEvent(sel: (e: Object) => Object): Object;
   }
 }
 
-function consume(src: String, token: String, wrapped: boolean) {
+export interface MockFunctionOptions {
+  returns?: string;
+  inputs?: string[];
+  sideEffects?: Function;
+}
+
+export class MockContract {
+  name: string;
+  sender: string;
+  principal: string;
+  funcs: Array<string> = [];
+
+  constructor(name: string, sender: string) {
+    this.name = name;
+    this.sender = sender;
+    this.principal = `${sender}.${name}`;
+  }
+
+  publicFn(name: string, options: MockFunctionOptions) {
+    this.funcs.push(`(define-public (${name} ${options.inputs?.join(' ')}) ${options.returns})`);
+  }
+
+  readOnlyFn(name: string, options: MockFunctionOptions) {
+    this.funcs.push(`(define-read-only (${name}) ${options.returns})`);
+  }
+
+  toString(): string {
+    return this.funcs.join("\n");
+  }
+}
+
+function consume(src: string | String, token: string, wrapped: boolean) {
   let dst = (" " + src).slice(1);
   let size = token.length;
   if (wrapped) {
@@ -476,7 +521,7 @@ String.prototype.expectTuple = function () {
     elements.push(remainder);
   }
 
-  let tuple: { [key: string]: String } = {};
+  let tuple: { [key: string]: string } = {};
   for (let element of elements) {
     for (var i = 0; i < element.length; i++) {
       if (element.charAt(i) === ":") {
@@ -493,8 +538,8 @@ String.prototype.expectTuple = function () {
 
 Array.prototype.expectSTXTransferEvent = function (
   amount: Number,
-  sender: String,
-  recipient: String,
+  sender: string,
+  recipient: string,
 ) {
   for (let event of this) {
     try {
@@ -514,9 +559,9 @@ Array.prototype.expectSTXTransferEvent = function (
 
 Array.prototype.expectFungibleTokenTransferEvent = function (
   amount: Number,
-  sender: String,
-  recipient: String,
-  assetId: String,
+  sender: string,
+  recipient: string,
+  assetId: string,
 ) {
   for (let event of this) {
     try {
@@ -545,8 +590,8 @@ Array.prototype.expectFungibleTokenTransferEvent = function (
 
 Array.prototype.expectFungibleTokenMintEvent = function (
   amount: Number,
-  recipient: String,
-  assetId: String,
+  recipient: string,
+  assetId: string,
 ) {
   for (let event of this) {
     try {
@@ -568,8 +613,8 @@ Array.prototype.expectFungibleTokenMintEvent = function (
 
 Array.prototype.expectFungibleTokenBurnEvent = function (
   amount: Number,
-  sender: String,
-  assetId: String,
+  sender: string,
+  assetId: string,
 ) {
   for (let event of this) {
     try {
@@ -601,7 +646,7 @@ Array.prototype.expectFungibleTokenBurnEvent = function (
 //     throw new Error(`Unable to retrieve expected PrintEvent`);
 // }
 
-// Array.prototype.expectNonFungibleTokenTransferEvent = function(token: String, sender: String, recipient: String, assetId: String) {
+// Array.prototype.expectNonFungibleTokenTransferEvent = function(token: string, sender: string, recipient: string, assetId: string) {
 //     for (let event of this) {
 //         try {
 //             let e: any = {};
@@ -621,7 +666,7 @@ Array.prototype.expectFungibleTokenBurnEvent = function (
 //     throw new Error(`Unable to retrieve expected NonFungibleTokenTransferEvent`);
 // }
 
-// Array.prototype.expectNonFungibleTokenMintEvent = function(token: String, recipient: String, assetId: String) {
+// Array.prototype.expectNonFungibleTokenMintEvent = function(token: string, recipient: string, assetId: string) {
 //     for (let event of this) {
 //         try {
 //             let e: any = {};
@@ -640,7 +685,7 @@ Array.prototype.expectFungibleTokenBurnEvent = function (
 //     throw new Error(`Unable to retrieve expected NonFungibleTokenTransferEvent`);
 // }
 
-// Array.prototype.expectNonFungibleTokenBurnEvent = function(token: String, sender: String, assetId: String) {
+// Array.prototype.expectNonFungibleTokenBurnEvent = function(token: string, sender: string, assetId: string) {
 //     for (let event of this) {
 //         try {
 //             let e: any = {};
