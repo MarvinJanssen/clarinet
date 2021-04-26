@@ -1,4 +1,4 @@
-import { Clarinet, Tx, Chain, Account, types, MockContract } from '../../../deno/index.ts';
+import { Clarinet, Tx, Chain, Account, types, typeDefs, MockContract } from '../../../deno/index.ts';
 import { assertEquals } from "https://deno.land/std@0.90.0/testing/asserts.ts";
 
 Clarinet.test({
@@ -6,7 +6,7 @@ Clarinet.test({
     preSetup(): Tx[] {
         let mockOracle = new MockContract("imaginary-oracle-v1", "SP000000000000000000002Q6VF78");
 		mockOracle.publicFn("price",{
-            inputs: ['(a (string-ascii 24))','(b (string-ascii 24))','(c uint)'],
+            inputs: [typeDefs.ascii(24), typeDefs.ascii(24), typeDefs.uint()],
             returns: types.ok(types.uint(2000000))
             });
         return [
@@ -25,7 +25,7 @@ Clarinet.test({
                 types.uint(5)
             ], wallet_1.address),
             
-            Tx.contractCall(`${deployer.address}.mocking-example`, "ticket-price", [], deployer.address)
+            //Tx.contractCall(`${deployer.address}.mocking-example`, "ticket-price", [], deployer.address)
         ]);
 		console.log(block.receipts[0]);
         // assertEquals(block.height, 2);

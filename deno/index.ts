@@ -22,7 +22,7 @@ export class Tx {
   static contractCall(
     contract: string,
     method: string,
-    args: Array<string>,
+    args: Array<valueType>,
     sender: string,
   ) {
     let tx = new Tx(2, sender);
@@ -126,7 +126,7 @@ export class Chain {
   callReadOnlyFn(
     contract: string,
     method: string,
-    args: Array<any>,
+    args: Array<valueType>,
     sender: string,
   ) {
     let result = (Deno as any).core.jsonOpSync("call_read_only_fn", {
@@ -184,6 +184,8 @@ export class Clarinet {
   }
 }
 
+export type valueType = string;
+
 export namespace types {
   const byteToHex: any = [];
   for (let n = 0; n <= 0xff; ++n) {
@@ -191,14 +193,16 @@ export namespace types {
     byteToHex.push(hexOctet);
   }
 
-  function serializeTuple(input: Object) {
+  function serializeTuple(input: Object): valueType {
     let items: Array<string> = [];
     for (var [key, value] of Object.entries(input)) {
-      if (typeof value === "object") {
+      if (Array.isArray(value)) {
+        throw new Error('Arrays inside tuples are not allowed.');
+      }
+      else if (typeof value === "object") {
         items.push(`${key}: { ${serializeTuple(value)} }`);
-      } else if (Array.isArray(value)) {
-        // todo(ludo): not supported, should panic
-      } else {
+      }
+      else {
         items.push(`${key}: ${value}`);
       }
     }
@@ -209,43 +213,43 @@ export namespace types {
     return typeof obj === "object" && !Array.isArray(obj);
   }
 
-  export function ok(val: string) {
+  export function ok(val: string): valueType {
     return `(ok ${val})`;
   }
 
-  export function err(val: string) {
+  export function err(val: string): valueType {
     return `(err ${val})`;
   }
 
-  export function some(val: string) {
+  export function some(val: string): valueType {
     return `(some ${val})`;
   }
 
-  export function none() {
+  export function none(): valueType {
     return `none`;
   }
 
-  export function bool(val: boolean) {
+  export function bool(val: boolean): valueType {
     return `${val}`;
   }
 
-  export function int(val: number) {
+  export function int(val: number): valueType {
     return `${val}`;
   }
 
-  export function uint(val: number) {
+  export function uint(val: number): valueType {
     return `u${val}`;
   }
 
-  export function ascii(val: string) {
+  export function ascii(val: string): valueType {
     return `"${val}"`;
   }
 
-  export function utf8(val: string) {
+  export function utf8(val: string): valueType {
     return `u"${val}"`;
   }
 
-  export function buff(val: ArrayBuffer) {
+  export function buff(val: ArrayBuffer): valueType {
     const buff = new Uint8Array(val);
     const hexOctets = new Array(buff.length);
 
@@ -256,16 +260,62 @@ export namespace types {
     return `0x${hexOctets.join("")}`;
   }
 
-  export function list(val: Array<any>) {
+  export function list(val: Array<any>): valueType {
     return `(list ${val.join(" ")})`;
   }
 
-  export function principal(val: string) {
+  export function principal(val: string): valueType {
     return `'${val}`;
   }
 
-  export function tuple(val: Object) {
+  export function tuple(val: Object): valueType {
     return `{ ${serializeTuple(val)} }`;
+  }
+}
+
+export type typeDef = string;
+
+export namespace typeDefs {
+  export function tuple(val: Object): typeDef {
+    let items: Array<string> = [];
+    for (var [key, value] of Object.entries(val)) {
+      if (Array.isArray(value)) {
+        throw new Error('Arrays inside tuple type definitions are not allowed.');
+      } 
+      else if (typeof value === "object") {
+        items.push(`(${key} ${tuple(value)})`);
+      } else {
+        items.push(`(${key} ${value})`);
+      }
+    }
+    return `(tuple ${items.join(" ")})`;
+  }
+  export function list(maxLen: number, entryType: string): typeDef {
+    return `(list ${maxLen} ${entryType})`;
+  }
+  export function response(okType: string,errType: string): typeDef {
+    return `(optional ${okType} ${errType})`;
+  }
+  export function optional(someType: string): typeDef {
+    return `(optional ${someType})`;
+  }
+  export function buff(maxLen: number): typeDef {
+    return `(buff ${maxLen})`;
+  }
+  export function ascii(maxLen: number): typeDef {
+    return `(string-ascii ${maxLen})`;
+  }
+  export function utf8(maxLen: number): typeDef {
+    return `(string-utf8 ${maxLen})`;
+  }
+  export function bool(): typeDef {
+    return 'bool';
+  }
+  export function int(): typeDef {
+    return 'int';
+  }
+  export function uint(): typeDef {
+    return 'uint';
   }
 }
 
@@ -318,7 +368,7 @@ declare global {
 
 export interface MockFunctionOptions {
   returns?: string;
-  inputs?: string[];
+  inputs?: Array<typeDef>;
   sideEffects?: Function;
 }
 
@@ -335,11 +385,13 @@ export class MockContract {
   }
 
   publicFn(name: string, options: MockFunctionOptions) {
-    this.funcs.push(`(define-public (${name} ${options.inputs?.join(' ')}) ${options.returns})`);
+    let incr = 0;
+    this.funcs.push(`(define-public (${name} ${options.inputs?.map(input => `(param${incr++} ${input})`).join(' ')}) ${options.returns})`);
   }
 
   readOnlyFn(name: string, options: MockFunctionOptions) {
-    this.funcs.push(`(define-read-only (${name}) ${options.returns})`);
+    let incr = 0;
+    this.funcs.push(`(define-read-only (${name}) ${options.inputs?.map(input => `(param${incr++} ${input})`).join(' ')}) ${options.returns})`);
   }
 
   toString(): string {
