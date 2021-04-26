@@ -213,15 +213,15 @@ export namespace types {
     return typeof obj === "object" && !Array.isArray(obj);
   }
 
-  export function ok(val: string): valueType {
+  export function ok(val: valueType): valueType {
     return `(ok ${val})`;
   }
 
-  export function err(val: string): valueType {
+  export function err(val: valueType): valueType {
     return `(err ${val})`;
   }
 
-  export function some(val: string): valueType {
+  export function some(val: valueType): valueType {
     return `(some ${val})`;
   }
 
@@ -260,7 +260,7 @@ export namespace types {
     return `0x${hexOctets.join("")}`;
   }
 
-  export function list(val: Array<any>): valueType {
+  export function list(val: Array<valueType>): valueType {
     return `(list ${val.join(" ")})`;
   }
 
@@ -290,10 +290,10 @@ export namespace typeDefs {
     }
     return `(tuple ${items.join(" ")})`;
   }
-  export function list(maxLen: number, entryType: string): typeDef {
+  export function list(maxLen: number, entryType: typeDef): typeDef {
     return `(list ${maxLen} ${entryType})`;
   }
-  export function response(okType: string,errType: string): typeDef {
+  export function response(okType: typeDef,errType: typeDef): typeDef {
     return `(optional ${okType} ${errType})`;
   }
   export function optional(someType: string): typeDef {
