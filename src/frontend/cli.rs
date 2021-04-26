@@ -121,11 +121,13 @@ pub fn main() {
         },
         Command::Console(_) => {
             let start_repl = true;
-            load_session(start_repl).expect("Unable to start REPL");
+            let skip_preload = false;
+            load_session(start_repl, skip_preload).expect("Unable to start REPL");
         },
         Command::Check(_) => {
             let start_repl = false;
-            let res = load_session(start_repl);
+            let skip_preload = false;
+            let res = load_session(start_repl, skip_preload);
             if let Err(e) = res {
                 println!("{}", e);
                 return;
@@ -133,7 +135,8 @@ pub fn main() {
         },
         Command::Test(_test) => {
             let start_repl = false;
-            let res = load_session(start_repl);
+            let skip_preload = true;
+            let res = load_session(start_repl, skip_preload);
             if let Err(e) = res {
                 println!("{}", e);
                 return;

@@ -4,7 +4,7 @@ use crate::types::{MainConfig, ChainConfig};
 use clarity_repl::{repl, Terminal};
 
 
-pub fn load_session(start_repl: bool) -> Result<(), String> {
+pub fn load_session(start_repl: bool, skip_preload: bool) -> Result<(), String> {
     let mut settings = repl::SessionSettings::default();
 
     let root_path = env::current_dir().unwrap();
@@ -38,24 +38,26 @@ pub fn load_session(start_repl: bool) -> Result<(), String> {
             .push(account);
     }
 
-    for (name, config) in project_config.ordered_contracts().iter() {
-        let mut contract_path = root_path.clone();
-        contract_path.push(&config.path);
+    if !skip_preload {
+        for (name, config) in project_config.ordered_contracts().iter() {
+            let mut contract_path = root_path.clone();
+            contract_path.push(&config.path);
 
-        let code = match fs::read_to_string(&contract_path) {
-            Ok(code) => code,
-            Err(err) => {
-                return Err(format!("Error: unable to read {:?}: {}", contract_path, err))
-            }
-        };
+            let code = match fs::read_to_string(&contract_path) {
+                Ok(code) => code,
+                Err(err) => {
+                    return Err(format!("Error: unable to read {:?}: {}", contract_path, err))
+                }
+            };
 
-        settings
-            .initial_contracts
-            .push(repl::settings::InitialContract {
-                code: code,
-                name: Some(name.clone()),
-                deployer: deployer_address.clone(),
-            });
+            settings
+                .initial_contracts
+                .push(repl::settings::InitialContract {
+                    code: code,
+                    name: Some(name.clone()),
+                    deployer: deployer_address.clone(),
+                });
+        }
     }
     settings.include_boot_contracts = true;
     settings.initial_deployer = initial_deployer;

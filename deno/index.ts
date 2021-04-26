@@ -293,7 +293,7 @@ export namespace typeDefs {
   export function list(maxLen: number, entryType: typeDef): typeDef {
     return `(list ${maxLen} ${entryType})`;
   }
-  export function response(okType: typeDef,errType: typeDef): typeDef {
+  export function response(okType: typeDef, errType: typeDef): typeDef {
     return `(optional ${okType} ${errType})`;
   }
   export function optional(someType: string): typeDef {
